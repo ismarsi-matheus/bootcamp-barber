@@ -1,8 +1,8 @@
 import { SheetClose, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet"
 import { Button } from "./ui/button"
 import { quickSearchOptions } from "../_constants/search"
-import { Avatar } from "./ui/avatar"
-import { AvatarImage } from "@radix-ui/react-avatar"
+import { Avatar, AvatarImage } from "./ui/avatar"
+
 import Link from "next/link"
 import { Calendar1Icon, HomeIcon, LogOutIcon } from "lucide-react"
 import Image from "next/image"
