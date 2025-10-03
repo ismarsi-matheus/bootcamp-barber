@@ -1,6 +1,8 @@
 import PhoneItem from "@/app/_components/phone-item"
 import ServiceItem from "@/app/_components/service-item"
+import SidebarSheet from "../../_components/sidebar-sheet"
 import { Button } from "@/app/_components/ui/button"
+import { Sheet, SheetTrigger } from "@/app/_components/ui/sheet"
 import { db } from "@/app/_lib/prisma"
 import { ChevronsLeftIcon, MapPinIcon, MenuIcon, StarIcon } from "lucide-react"
 import Image from "next/image"
@@ -33,7 +35,7 @@ const BarbershopPage = async ({ params }: BarbershopPageProps) => {
       <div className="relative h-[250px] w-full">
         {/* omagem */}
         <Image
-          alt={barbershop.item}
+          alt={barbershop.name}
           src={barbershop?.imageUrl}
           fill
           className="object-cover"
@@ -48,13 +50,18 @@ const BarbershopPage = async ({ params }: BarbershopPageProps) => {
             <ChevronsLeftIcon />
           </Link>
         </Button>
-        <Button
-          size="icon"
-          variant="secondary"
-          className="absolute right-4 top-4"
-        >
-          <MenuIcon />
-        </Button>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              size="icon"
+              variant="outline"
+              className="absolute right-4 top-4"
+            >
+              <MenuIcon />
+            </Button>
+          </SheetTrigger>
+          <SidebarSheet />
+        </Sheet>
       </div>
 
       <div className="border-b border-solid p-5">
