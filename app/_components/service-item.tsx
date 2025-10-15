@@ -13,8 +13,8 @@ import {
 } from "./ui/sheet";
 import { Calendar } from "./ui/calendar";
 import { ptBR } from "date-fns/locale";
-import { useEffect, useState } from "react";
-import { addDays, format, set } from "date-fns";
+import { useEffect, useMemo, useState } from "react";
+import { format, isPast, set, isBefore, startOfDay } from "date-fns";
 import { createBooking } from "../_actions/create-booking";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
@@ -51,10 +51,23 @@ const TIME_LIST = [
   "18:00",
 ];
 
-const getTimeList = (bookings: Booking[]) => {
+interface GetTimeListProps {
+  bookings: Booking[];
+  selectedDay: Date;
+}
+
+// 🔧 Função ajustada para bloquear horários passados
+const getTimeList = ({ bookings, selectedDay }: GetTimeListProps) => {
   return TIME_LIST.filter((time) => {
     const hour = Number(time.split(":")[0]);
     const minutes = Number(time.split(":")[1]);
+
+    const selectedDateTime = set(selectedDay, { hours: hour, minutes });
+
+    // Bloqueia horários passados no dia atual
+    if (isPast(selectedDateTime)) {
+      return false;
+    }
 
     const hasBookingOnCurrentTime = bookings.some(
       (booking) =>
@@ -64,6 +77,7 @@ const getTimeList = (bookings: Booking[]) => {
     if (hasBookingOnCurrentTime) {
       return false;
     }
+
     return true;
   });
 };
@@ -78,20 +92,28 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
   const [dayBookings, setDayBookings] = useState<Booking[]>([]);
   const [bookingSheetIsOpen, setBookingSheetIsOpen] = useState(false);
 
+  // 🔧 Bloqueia carregamento de reservas para dias anteriores
   useEffect(() => {
     const fetch = async () => {
       if (!selectedDay) return;
+
+      // Bloqueia dias anteriores ao atual
+      if (isBefore(startOfDay(selectedDay), startOfDay(new Date()))) {
+        toast.error("Não é possível agendar para dias anteriores ao atual.");
+        setSelectedDay(undefined);
+        return;
+      }
+
       const bookings = await getBookings({
         date: selectedDay,
         serviceId: service.id,
       });
       setDayBookings(bookings);
     };
-    console.log("useEffect");
     fetch();
   }, [selectedDay, service.id]);
 
-  const hadleBookingClick = () => {
+  const handleBookingClick = () => {
     if (data?.user) {
       return setBookingSheetIsOpen(true);
     }
@@ -106,6 +128,11 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
   };
 
   const handleDateSelect = (date: Date | undefined) => {
+    // 🔧 Impede seleção de datas anteriores
+    if (date && isBefore(startOfDay(date), startOfDay(new Date()))) {
+      toast.error("Você não pode selecionar um dia anterior ao atual!");
+      return;
+    }
     setSelectedDay(date);
   };
 
@@ -116,16 +143,22 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
   const handleCreateBooking = async () => {
     try {
       if (!selectedDay || !selectedTime) return;
+
       const hour = Number(selectedTime.split(":")[0]);
       const minute = Number(selectedTime.split(":")[1]);
-      const newDate = set(selectedDay, {
-        minutes: minute,
-        hours: hour,
-      });
+      const newDate = set(selectedDay, { minutes: minute, hours: hour });
+
+      // 🔧 Bloqueia tentativa de criar agendamento no passado
+      if (isPast(newDate)) {
+        toast.error("Não é possível agendar um horário no passado!");
+        return;
+      }
+
       await createBooking({
         serviceId: service.id,
         date: newDate,
       });
+
       handleBookingSheetOpenChange();
       toast.success("Reserva criada com sucesso!");
     } catch (error) {
@@ -134,11 +167,19 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
     }
   };
 
+  const timeList = useMemo(() => {
+    if (!selectedDay) return [];
+    return getTimeList({
+      bookings: dayBookings,
+      selectedDay,
+    });
+  }, [dayBookings, selectedDay]);
+
   return (
     <>
       <Card>
         <CardContent className="flex items-center gap-3 p-3">
-          {/* IMAGE */}
+          {/* IMAGEM */}
           <div className="relative max-h-[110px] min-h-[110px] min-w-[110px] max-w-[110px]">
             <Image
               alt={service.name}
@@ -147,11 +188,13 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
               className="rounded-lg object-cover"
             />
           </div>
-          {/* DIREITA */}
+
+          {/* CONTEÚDO DIREITO */}
           <div className="space-y-2">
             <h3 className="text-sm font-semibold">{service.name}</h3>
             <p className="text-sm text-gray-400">{service.description}</p>
-            {/* PREÇO E BOTÃO */}
+
+            {/* PREÇO + BOTÃO */}
             <div className="flex items-center justify-between">
               <p className="text-sm font-bold text-primary">
                 {Intl.NumberFormat("pt-BR", {
@@ -167,7 +210,7 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={hadleBookingClick}
+                  onClick={handleBookingClick}
                 >
                   Reservar
                 </Button>
@@ -177,55 +220,59 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
                     <SheetTitle>Fazer Reserva</SheetTitle>
                   </SheetHeader>
 
-                  <div className="flex justify-center border-b border-solid py-5">
-                    <div className="w-fit">
-                      <Calendar
-                        mode="single"
-                        locale={ptBR}
-                        selected={selectedDay}
-                        onSelect={handleDateSelect}
-                        fromDate={addDays(new Date(), 1)}
-                        styles={{
-                          head_cell: {
-                            width: "100%",
-                            textTransform: "capitalize",
-                          },
-                          cell: {
-                            width: "100%",
-                          },
-                          button: {
-                            width: "100%",
-                          },
-                          nav_button_previous: {
-                            width: "32px",
-                            height: "32px",
-                          },
-                          nav_button_next: {
-                            width: "32px",
-                            height: "32px",
-                          },
-                          caption: {
-                            textTransform: "capitalize",
-                          },
-                        }}
-                      />
-                    </div>
+                  <div className="border-b border-solid py-5">
+                    <Calendar
+                      mode="single"
+                      locale={ptBR}
+                      selected={selectedDay}
+                      onSelect={handleDateSelect}
+                      fromDate={new Date()} // 🔧 impede seleção anterior a hoje
+                      styles={{
+                        head_cell: {
+                          width: "100%",
+                          textTransform: "capitalize",
+                        },
+                        cell: {
+                          width: "100%",
+                        },
+                        button: {
+                          width: "100%",
+                        },
+                        nav_button_previous: {
+                          width: "32px",
+                          height: "32px",
+                        },
+                        nav_button_next: {
+                          width: "32px",
+                          height: "32px",
+                        },
+                        caption: {
+                          textTransform: "capitalize",
+                        },
+                      }}
+                    />
                   </div>
 
                   {selectedDay && (
                     <div className="flex gap-3 overflow-x-auto border-b border-solid p-5 [&::-webkit-scrollbar]:hidden">
-                      {getTimeList(dayBookings).map((time) => (
-                        <Button
-                          key={time}
-                          variant={
-                            selectedTime === time ? "default" : "outline"
-                          }
-                          className="rounded-full"
-                          onClick={() => handleTimeSelect(time)}
-                        >
-                          {time}
-                        </Button>
-                      ))}
+                      {timeList.length > 0 ? (
+                        timeList.map((time) => (
+                          <Button
+                            key={time}
+                            variant={
+                              selectedTime === time ? "default" : "outline"
+                            }
+                            className="rounded-full"
+                            onClick={() => handleTimeSelect(time)}
+                          >
+                            {time}
+                          </Button>
+                        ))
+                      ) : (
+                        <p className="text-xs">
+                          Não há horários disponíveis para este dia.
+                        </p>
+                      )}
                     </div>
                   )}
 

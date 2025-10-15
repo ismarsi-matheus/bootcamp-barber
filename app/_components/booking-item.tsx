@@ -20,7 +20,6 @@ import PhoneItem from "./phone-item";
 import { Button } from "./ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -28,6 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./ui/dialog";
+import { DialogClose } from "@radix-ui/react-dialog";
 import { deleteBooking } from "../_actions/delete-booking";
 import { toast } from "sonner";
 import { useState } from "react";
@@ -44,6 +44,7 @@ interface BookingItemProps {
   }>;
 }
 
+// TODO: receber agendamento como prop
 const BookingItem = ({ booking }: BookingItemProps) => {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const {
@@ -57,7 +58,7 @@ const BookingItem = ({ booking }: BookingItemProps) => {
       toast.success("Reserva cancelada com sucesso!");
     } catch (error) {
       console.error(error);
-      toast.error("Erro ao cancelar reserva. Tente novamentee");
+      toast.error("Erro ao cancelar reserva. Tente novamente.");
     }
   };
   const handleSheetOpenChange = (isOpen: boolean) => {
@@ -66,8 +67,9 @@ const BookingItem = ({ booking }: BookingItemProps) => {
   return (
     <Sheet open={isSheetOpen} onOpenChange={handleSheetOpenChange}>
       <SheetTrigger className="w-full">
-        <Card className="mt-6 min-w-[90%]">
+        <Card className="min-w-[90%]">
           <CardContent className="flex justify-between p-0">
+            {/* ESQUERDA */}
             <div className="flex flex-col gap-2 py-5 pl-5">
               <Badge
                 className="w-fit"
@@ -75,7 +77,8 @@ const BookingItem = ({ booking }: BookingItemProps) => {
               >
                 {isConfirmed ? "Confirmado" : "Finalizado"}
               </Badge>
-              <h3>{booking.service.name}</h3>
+              <h3 className="font-semibold">{booking.service.name}</h3>
+
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={booking.service.barbershop.imageUrl} />
@@ -83,7 +86,7 @@ const BookingItem = ({ booking }: BookingItemProps) => {
                 <p className="text-sm">{booking.service.barbershop.name}</p>
               </div>
             </div>
-
+            {/* DIREITA */}
             <div className="flex flex-col items-center justify-center border-l-2 border-solid px-5">
               <p className="text-sm capitalize">
                 {format(booking.date, "MMMM", { locale: ptBR })}
@@ -100,8 +103,9 @@ const BookingItem = ({ booking }: BookingItemProps) => {
       </SheetTrigger>
       <SheetContent className="w-[85%]">
         <SheetHeader>
-          <SheetTitle className="text-left">Informacoes da reserva</SheetTitle>
+          <SheetTitle className="text-left">Informações da Reserva</SheetTitle>
         </SheetHeader>
+
         <div className="relative mt-6 flex h-[180px] w-full items-end">
           <Image
             alt={`Mapa da barbearia ${booking.service.barbershop.name}`}
@@ -122,6 +126,7 @@ const BookingItem = ({ booking }: BookingItemProps) => {
             </CardContent>
           </Card>
         </div>
+
         <div className="mt-6">
           <Badge
             className="w-fit"
@@ -167,13 +172,13 @@ const BookingItem = ({ booking }: BookingItemProps) => {
             </CardContent>
           </Card>
 
-          <div className="sapce-y-3">
-            {barbershop.phones.map((phone) => (
-              <PhoneItem key={phone} phone={phone} />
+          <div className="space-y-3">
+            {barbershop.phones.map((phone, index) => (
+              <PhoneItem key={index} phone={phone} />
             ))}
           </div>
         </div>
-        <SheetFooter>
+        <SheetFooter className="mt-6">
           <div className="flex items-center gap-3">
             <SheetClose asChild>
               <Button variant="outline" className="w-full">
@@ -189,7 +194,7 @@ const BookingItem = ({ booking }: BookingItemProps) => {
                 </DialogTrigger>
                 <DialogContent className="w-[90%]">
                   <DialogHeader>
-                    <DialogTitle>Cancelar Reserva</DialogTitle>
+                    <DialogTitle>Você deseja cancelar sua reserva?</DialogTitle>
                     <DialogDescription>
                       Tem certeza que deseja cancelar esse agendamento?
                     </DialogDescription>
@@ -203,8 +208,8 @@ const BookingItem = ({ booking }: BookingItemProps) => {
                     <DialogClose className="w-full">
                       <Button
                         variant="destructive"
-                        className="w-full"
                         onClick={handleCancelBooking}
+                        className="w-full"
                       >
                         Confirmar
                       </Button>
